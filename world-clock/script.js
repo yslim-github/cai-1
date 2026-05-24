@@ -293,4 +293,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
     renderClocks();
     tick(); // 루프 구동
+
+    // 테마 전환 관리
+    const themeToggle = document.getElementById('theme-toggle');
+    const htmlElement = document.documentElement;
+
+    // 로컬 스토리지에서 이전 테마 로드
+    const savedTheme = localStorage.getItem('world-clock-theme') || 'light';
+    htmlElement.setAttribute('data-theme', savedTheme);
+    updateThemeIcon(savedTheme);
+
+    themeToggle.addEventListener('click', () => {
+        const currentTheme = htmlElement.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        
+        htmlElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('world-clock-theme', newTheme);
+        updateThemeIcon(newTheme);
+    });
+
+    function updateThemeIcon(theme) {
+        const icon = themeToggle.querySelector('i');
+        if (theme === 'dark') {
+            icon.setAttribute('data-lucide', 'sun');
+            themeToggle.setAttribute('aria-label', '라이트 모드로 전환');
+        } else {
+            icon.setAttribute('data-lucide', 'moon');
+            themeToggle.setAttribute('aria-label', '다크 모드로 전환');
+        }
+        lucide.createIcons(); // 아이콘 형태 업데이트
+    }
 });
