@@ -222,30 +222,75 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 임시 setDate 및 루프 (Task 5에서 업데이트됨)
     function setDate() {
+        if (clockElements.length === 0) return;
+
+        const nowUtc = new Date();
+
         clockElements.forEach(element => {
-            const { city, hourHand, minHand, secondHand, dateDiv } = element;
-            const now = new Date(new Date().toLocaleString("en-US", { timeZone: city.timeZone }));
+            const { city, hourHand, minHand, secondHand, digitalTime, dateDiv } = element;
+            
+            try {
+                // 특정 타임존의 현지 시각 정보 추출
+                const formatter = new Intl.DateTimeFormat('en-US', {
+                    timeZone: city.timeZone,
+                    year: 'numeric', month: 'numeric', day: 'numeric',
+                    hour: 'numeric', minute: 'numeric', second: 'numeric',
+                    hour12: false
+                });
+                
+                const parts = formatter.formatToParts(nowUtc);
+                const partObj = {};
+                parts.forEach(p => partObj[p.type] = p.value);
+                
+                const year = parseInt(partObj.year);
+                const month = parseInt(partObj.month) - 1;
+                const day = parseInt(partObj.day);
+                const hours = parseInt(partObj.hour);
+                const minutes = parseInt(partObj.minute);
+                const seconds = parseInt(partObj.second);
+                const milliseconds = nowUtc.getMilliseconds(); // 디바이스 밀리초를 초침 부드러운 연출에 적용
+                
+                // 타임존 날짜 객체 생성
+                const targetNow = new Date(year, month, day, hours, minutes, seconds, milliseconds);
 
-            const seconds = now.getSeconds();
-            const secondsDegrees = ((seconds / 60) * 360) + 90;
-            secondHand.style.transform = `rotate(${secondsDegrees}deg)`;
+                // 초침 각도 계산 (밀리초 적용하여 스위핑 회전 구현)
+                const msSecond = seconds + (milliseconds / 1000);
+                const secondsDegrees = (msSecond / 60) * 360;
+                secondHand.style.transform = `rotate(${secondsDegrees}deg)`;
 
-            const mins = now.getMinutes();
-            const minsDegrees = ((mins / 60) * 360) + ((seconds/60)*6) + 90;
-            minHand.style.transform = `rotate(${minsDegrees}deg)`;
+                // 분침 각도 계산 (초 정보 반영)
+                const minsDegrees = ((minutes / 60) * 360) + ((seconds / 60) * 6);
+                minHand.style.transform = `rotate(${minsDegrees}deg)`;
 
-            const hour = now.getHours();
-            const hourDegrees = ((hour / 12) * 360) + ((mins/60)*30) + 90;
-            hourHand.style.transform = `rotate(${hourDegrees}deg)`;
+                // 시침 각도 계산 (분 정보 반영)
+                const displayHour = hours % 12;
+                const hourDegrees = ((displayHour / 12) * 360) + ((minutes / 60) * 30);
+                hourHand.style.transform = `rotate(${hourDegrees}deg)`;
 
-            const dateOptions = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long', timeZone: city.timeZone };
-            dateDiv.textContent = new Intl.DateTimeFormat('ko-KR', dateOptions).format(now);
+                // 하단 디지털 시간 출력 (2자리 수 패딩 처리)
+                const ampm = hours >= 12 ? 'PM' : 'AM';
+                const formattedHour = String(hours % 12 || 12).padStart(2, '0');
+                const formattedMinute = String(minutes).padStart(2, '0');
+                const formattedSecond = String(seconds).padStart(2, '0');
+                digitalTime.textContent = `${ampm} ${formattedHour}:${formattedMinute}:${formattedSecond}`;
+
+                // 하단 날짜 출력
+                const dateOptions = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long', timeZone: city.timeZone };
+                dateDiv.textContent = new Intl.DateTimeFormat('ko-KR', dateOptions).format(targetNow);
+
+            } catch (err) {
+                console.error(`${city.name} 시간 업데이트 중 에러 발생:`, err);
+            }
         });
     }
 
+    // requestAnimationFrame을 활용해 매 프레임(약 16ms) 단위로 호출하여 부드러운 초침 표현
+    function tick() {
+        setDate();
+        requestAnimationFrame(tick);
+    }
+
     renderClocks();
-    setInterval(setDate, 1000);
-    setDate();
+    tick(); // 루프 구동
 });
